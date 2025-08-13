@@ -1,19 +1,35 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@lib/dbconnect";
+import vader from "vader-sentiment";
+import dbConnect from "@/lib/dbconnect";
 import JournalEntry from "@/models/JournalEntry";
-import sentiment from "sentiment";
-export async function Post(request) {
+
+export async function POST(request) {
   try {
     await dbConnect();
-    const { userID, username, text } = await request.json();
-    const result = sentiment(text);
-    const sentimentScore = result.score;
+    console.log("Database connected successfully.");
+
+    const { username, text } = await request.json();
+    console.log("Received data:", { username, text });
+
+    if (!username || !text) {
+      return NextResponse.json(
+        { error: "Username and text are required." },
+        { status: 400 }
+      );
+    }
+
+    const userID = username;
+
+    const scores = vader.SentimentIntensityAnalyzer.polarity_scores(text);
+    const sentimentScore = scores.compound;
     const moodLabel =
-      sentimentScore > 0
+      sentimentScore >= 0.05
         ? "Positive"
-        : sentimentScore < 0
+        : sentimentScore <= -0.05
         ? "Negative"
         : "Neutral";
+
+    console.log("Sentiment analysis complete:", { sentimentScore, moodLabel });
 
     const newEntry = new JournalEntry({
       userID,
@@ -24,14 +40,16 @@ export async function Post(request) {
     });
 
     await newEntry.save();
+    console.log("Journal entry saved:", newEntry);
 
     return NextResponse.json(
       { message: "Entry saved successfully!" },
       { status: 201 }
     );
   } catch (error) {
+    console.error("API submission error:", error);
     return NextResponse.json(
-      { error: "Failed to save entry", details: error.message },
+      { error: "Failed to save journal entry. Check server logs." },
       { status: 500 }
     );
   }

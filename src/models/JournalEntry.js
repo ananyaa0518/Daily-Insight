@@ -14,7 +14,7 @@ const JournalEntrySchema = new mongoose.Schema({
   },
   date: {
     type: Date,
-    default: Date.now(),
+    default: Date.now,
   },
   text: {
     type: String,
